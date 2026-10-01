@@ -1,0 +1,11 @@
+{
+ "input_packet": null,
+ "pending": [
+  {
+   "type": "sub-question",
+   "content": "How should a small open-source project structure its first plugin API so that third-party plugins cannot corrupt core state?",
+   "salience": 0.8,
+   "salience_eff": 0.8
+  }
+ ]
+}

@@ -1,0 +1,81 @@
+{
+ "input_packet": {
+  "jev_id": "jev-848f6f8ef535",
+  "cell": "input",
+  "hop": 0,
+  "ts": "2026-10-01T21:31:46Z",
+  "judgment": {
+   "verdict": "Decompose the user prompt into actionable granular components.",
+   "confidence": 0.98,
+   "grounds": "The user explicitly requests a decomposition of the prompt into sub-questions, entities, constraints, and risks with salience scores."
+  },
+  "extractions": [
+   {
+    "type": "sub-question",
+    "content": "How should a small open-source project structure its first plugin API to prevent third\u2011party plugins from corrupting core state?",
+    "salience": 0.92
+   },
+   {
+    "type": "constraint",
+    "content": "Small open-source project (limited resources, small team)",
+    "salience": 0.65
+   },
+   {
+    "type": "entity",
+    "content": "Core state of the application",
+    "salience": 0.75
+   },
+   {
+    "type": "risk",
+    "content": "Third\u2011party plugins may corrupt or unexpectedly alter core state",
+    "salience": 0.78
+   },
+   {
+    "type": "entity",
+    "content": "Plugin API design (e.g., interfaces, sandboxing, immutability)",
+    "salience": 0.85
+   }
+  ],
+  "verdict": {
+   "action": "answer",
+   "targets_hint": [],
+   "summary": "The prompt is to be broken down into sub\u2011questions, constraints, entities, and risks, with salience ratings indicating how crucial each component is for crafting a suitable plugin API design."
+  },
+  "parents": [],
+  "notes": {
+   "repairs": []
+  }
+ },
+ "pending": [
+  {
+   "type": "sub-question",
+   "content": "How should a small open-source project structure its first plugin API to prevent third\u2011party plugins from corrupting core state?",
+   "salience": 0.92,
+   "salience_eff": 0.9016
+  },
+  {
+   "type": "constraint",
+   "content": "Small open-source project (limited resources, small team)",
+   "salience": 0.65,
+   "salience_eff": 0.637
+  },
+  {
+   "type": "entity",
+   "content": "Core state of the application",
+   "salience": 0.75,
+   "salience_eff": 0.735
+  },
+  {
+   "type": "risk",
+   "content": "Third\u2011party plugins may corrupt or unexpectedly alter core state",
+   "salience": 0.78,
+   "salience_eff": 0.7644
+  },
+  {
+   "type": "entity",
+   "content": "Plugin API design (e.g., interfaces, sandboxing, immutability)",
+   "salience": 0.85,
+   "salience_eff": 0.833
+  }
+ ]
+}

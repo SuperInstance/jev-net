@@ -1,0 +1,55 @@
+{
+  "format": "jev-net@1",
+  "name": "default-net",
+  "created": "wave-65",
+  "cells": {
+    "input": {
+      "role": "input",
+      "persona": "You decompose prompts into granular components. You are the sensory epithelium of the net: faithful, exhaustive, no opinions.",
+      "accepts": [],
+      "threshold": 0.0,
+      "ladder": [["gpt-oss-20b", "deepinfra", "openai/gpt-oss-20b"], ["deepseek-flash", "deepseek", "deepseek-chat"]],
+      "max_tokens": 800, "deadline_s": 45
+    },
+    "mechanism": {
+      "role": "layer",
+      "persona": "You are the mechanism cell: an engineer who wants the smallest mechanism that could work. Concrete steps, named parts, no hand-waving.",
+      "accepts": ["sub-question", "constraint", "mechanism", "anchor"],
+      "threshold": 0.12,
+      "ladder": [["granite", "deepinfra", "ibm-granite/granite-4.2-3b"], ["deepseek-flash", "deepseek", "deepseek-chat"]],
+      "max_tokens": 900, "deadline_s": 50
+    },
+    "skeptic": {
+      "role": "layer",
+      "persona": "You are the skeptic cell: a devil's advocate. You attack the weakest joint of whatever is projected into you and name the failure mode precisely.",
+      "accepts": ["sub-question", "claim", "risk", "counter"],
+      "threshold": 0.12,
+      "ladder": [["seed-mini", "deepinfra", "ByteDance/Seed-2.0-mini"], ["deepseek-flash", "deepseek", "deepseek-chat"]],
+      "max_tokens": 700, "deadline_s": 45
+    },
+    "builder": {
+      "role": "layer",
+      "persona": "You are the builder cell: you turn mechanisms and constraints into an actual answer sketch — what to do, in what order, with what.",
+      "accepts": ["mechanism", "constraint", "entity", "anchor"],
+      "threshold": 0.15,
+      "ladder": [["gpt-oss-20b", "deepinfra", "openai/gpt-oss-20b"], ["deepseek-flash", "deepseek", "deepseek-chat"]],
+      "max_tokens": 900, "deadline_s": 50
+    },
+    "synth": {
+      "role": "synth",
+      "persona": "Weaver of contributions into one answer.",
+      "accepts": [],
+      "threshold": 0.0,
+      "ladder": [["gpt-oss-20b", "deepinfra", "openai/gpt-oss-20b"], ["deepseek-flash", "deepseek", "deepseek-chat"]],
+      "max_tokens": 1400, "deadline_s": 70
+    }
+  },
+  "edges": [
+    {"from": "input", "to": "mechanism", "accepts": ["sub-question", "constraint", "anchor"], "weight": 0.8},
+    {"from": "input", "to": "skeptic",   "accepts": ["sub-question", "risk", "claim"],          "weight": 0.7},
+    {"from": "input", "to": "builder",   "accepts": ["entity", "constraint", "anchor"],         "weight": 0.6},
+    {"from": "mechanism", "to": "builder", "accepts": ["mechanism", "constraint"],              "weight": 0.75},
+    {"from": "skeptic",   "to": "builder", "accepts": ["counter", "risk", "claim"],             "weight": 0.7},
+    {"from": "builder",   "to": "skeptic", "accepts": ["claim", "mechanism"],                   "weight": 0.5}
+  ]
+}

@@ -1,0 +1,63 @@
+{
+ "run_id": "fwd-212954-038c",
+ "prompt": "How should a small open-source project structure its first plugin API so that third-party plugins cannot corrupt core state?",
+ "answer": "**Designing a resilient, first\u2011plugin API for a small open\u2011source project**\n\n| Element | Why it matters | Practical take\u2011away |\n|---|---|---|\n| **Explicit separation of core and plugin state** | Real \u201ccorruption\u201d happens when a plugin writes into data structures that the core owns, bypassing any invariants the core enforces. | *Core owns data, plugins read or receive copies; writes only through a well\u2011defined, safe API.* |\n| **Immutable core objects exposed to plugins** | Immutability guarantees that plugins cannot alter shared state even if they acquire a reference. | Wrap core state inside `Arc<T>` and expose only immutable `&T` or read\u2011only wrappers. |\n| **Controlled mutation via actions, not data** | A ledger of \u201cactions\u201d (commands) that describe how the core may change state creates a single, auditable channel for mutation. | Adopt a command pattern: the plugin submits an `Action` (`enum`) which the core validates and executes. |\n| **Fine\u2011grained capability lists** | Gives the core the ability to tailor what a plugin can do, rather than giving \u201croot\u201d access. | Each plugin receives a `CapabilitySet` at load time; the API checks membership before any mutation. |\n| **Type\u2011safe, trait\u2011based plugin interface** | Static typing or binding can catch mismatched expectations at compile time. | In Rust, expose a `Plugin` trait with associated types; in other languages, use interfaces or abstract base classes. |\n| **Sandboxed execution (optional but valuable)** | Ensures that any runaway or buggy plugin is prevented from reading/writing files or crashing the core. | Run plugins in separate processes or use language\u2011provided sandboxing (`--restricted`), then communicate via IPC or secure bindings. |\n| **Strict version pinning and semantic\u2011release logic** | Prevents breaking changes in the core API from silently breaking plugins, which could lead to state corruption. | Use `Cargo.toml` `core = \"1.0\"` and bump the major version when the trait signature changes. |\n| **Explicit error handling on API calls** | A plugin that attempts a forbidden operation should get a clear, recoverable error rather than a silent corruption. | All API functions return `Result<T, ApiError>`; the core can act on `ApiError::Unauthorized`. |\n| **Plugin configuration isolation** | Plugin\u2011local config should not touch core config files unless explicitly delegated. | Store plugin configs in dedicated directories (`.plugin-<name>/config.json`), or expose a `ConfigStore` with `set_plugin(key, value)` methods. |\n| **Automated testing and CI integration** | Ensures that changes to the core do not break the enforced boundaries. | Add cargo tests that load white\u2011list plugins, run common interactions, and assert invariants (e.g., `assert_eq!(core.state, expected_state)` after each action). |\n| **Transparent governance and sign\u2011offs** | Keeps the core team in control of what plugins can be published and how they\u2019re audited. | Set up a `trusted\u2011plugins` crate or a tag in the repo to flag permitted plugins; maintain a review board for new plugin registrations. |\n\n---\n\n### Minimal architectural sketch\n\n```\ncore\n\u2502   \u251c\u2500 libcore.rs            // core logic, immutable state\n\u2502   \u251c\u2500 plugin_api.rs         // trait Plugin { fn register(&self, ctx: &mut Context); }\n\u2502   \u251c\u2500 context.rs\n\u2502   \u2502   \u2514\u2500 Context { // read\u2011only view of state + capability delegations\n\u2502   \u2514\u2500 engine.rs            // plugin loader, sandbox, command dispatcher\n\u2502\nplugins\n\u2502   \u251c\u2500 myplugin/\n\u2502   \u2502   \u251c\u2500 lib.rs            // implements Plugin\n\u2502   \u2502   \u2514\u2500 Cargo.toml\n\u2502   \u2514\u2500 otherplugin/\n\u2502       \u2514\u2500 ...\n```\n\n- **`Context`** holds immutable references to the core state plus a `Capabilities` mask.\n- **`Command`** (enum with variants for each allowed mutation) is thread\u2011safe and serializable.\n- **Plugin loader** validates the plugin\u2019s signature, verifies the `Capabilities`, and optionally runs it in a sandboxed thread or child process.\n- **Engine** receives the plugin\u2019s `Command` objects, validates them against the current state, then applies them atomically.\n\n",
+ "transcript": [],
+ "route": null,
+ "run_log": {
+  "run_id": "fwd-212954-038c",
+  "prompt": "How should a small open-source project structure its first plugin API so that third-party plugins cannot corrupt core state?",
+  "started": "2026-10-01T21:29:54Z",
+  "seed": 43879,
+  "calls": [
+   {
+    "cell": "input",
+    "hop": 0,
+    "source": "gpt-oss-20b",
+    "ms": 7298,
+    "attempts": [
+     {
+      "label": "gpt-oss-20b",
+      "kind": "deepinfra",
+      "model": "openai/gpt-oss-20b",
+      "status": 200,
+      "ms": 7298,
+      "finish": "length",
+      "content_chars": 1005,
+      "model_served": "openai/gpt-oss-20b"
+     }
+    ],
+    "seed_requested": 43879
+   },
+   {
+    "cell": "synth",
+    "source": "gpt-oss-20b",
+    "ms": 14619,
+    "attempts": [
+     {
+      "label": "gpt-oss-20b",
+      "kind": "deepinfra",
+      "model": "openai/gpt-oss-20b",
+      "status": 200,
+      "ms": 14619,
+      "finish": "length",
+      "content_chars": 4030,
+      "model_served": "openai/gpt-oss-20b"
+     }
+    ]
+   }
+  ],
+  "hops": [
+   {
+    "hop": 1,
+    "note": "dead hop, no eligible cells",
+    "fired": []
+   }
+  ],
+  "spawn_injections": [],
+  "packets": [],
+  "max_hops": 2,
+  "spawn_budget": 3
+ },
+ "finished": "2026-10-01T21:30:16Z"
+}

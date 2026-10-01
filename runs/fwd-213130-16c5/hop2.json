@@ -1,0 +1,37 @@
+{
+ "hop": 2,
+ "inbox": {
+  "mechanism": {
+   "activation": 3.6975,
+   "n_delivered": 6
+  },
+  "builder": {
+   "activation": 6.367,
+   "n_delivered": 13
+  },
+  "skeptic": {
+   "activation": 3.868,
+   "n_delivered": 8
+  }
+ },
+ "fired": [
+  {
+   "cell": "builder",
+   "note": "call failed",
+   "source": "gpt-oss-20b"
+  },
+  {
+   "cell": "skeptic",
+   "activation": 3.868,
+   "action": "route",
+   "n_extractions": 5
+  },
+  {
+   "cell": "mechanism",
+   "activation": 3.6975,
+   "action": "answer",
+   "n_extractions": 5
+  }
+ ],
+ "spawned": []
+}

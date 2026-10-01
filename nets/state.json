@@ -1,0 +1,86 @@
+{
+ "format": "jev-net-state@1",
+ "cells": {
+  "input": {
+   "threshold": 0.0
+  },
+  "mechanism": {
+   "threshold": 0.1129
+  },
+  "skeptic": {
+   "threshold": 0.12
+  },
+  "builder": {
+   "threshold": 0.1455
+  },
+  "synth": {
+   "threshold": 0.0
+  }
+ },
+ "edges": [
+  {
+   "from": "input",
+   "to": "mechanism",
+   "accepts": [
+    "sub-question",
+    "constraint",
+    "anchor"
+   ],
+   "weight": 1.0,
+   "n_updates": 2
+  },
+  {
+   "from": "input",
+   "to": "skeptic",
+   "accepts": [
+    "sub-question",
+    "risk",
+    "claim"
+   ],
+   "weight": 0.7707,
+   "n_updates": 2
+  },
+  {
+   "from": "input",
+   "to": "builder",
+   "accepts": [
+    "entity",
+    "constraint",
+    "anchor"
+   ],
+   "weight": 0.6351,
+   "n_updates": 1
+  },
+  {
+   "from": "mechanism",
+   "to": "builder",
+   "accepts": [
+    "mechanism",
+    "constraint"
+   ],
+   "weight": 0.7939,
+   "n_updates": 1
+  },
+  {
+   "from": "skeptic",
+   "to": "builder",
+   "accepts": [
+    "counter",
+    "risk",
+    "claim"
+   ],
+   "weight": 0.7,
+   "n_updates": 0
+  },
+  {
+   "from": "builder",
+   "to": "skeptic",
+   "accepts": [
+    "claim",
+    "mechanism"
+   ],
+   "weight": 0.5243,
+   "n_updates": 1
+  }
+ ]
+}

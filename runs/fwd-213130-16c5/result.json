@@ -1,0 +1,664 @@
+{
+ "run_id": "fwd-213130-16c5",
+ "prompt": "How should a small open-source project structure its first plugin API so that third-party plugins cannot corrupt core state?",
+ "answer": "**Answer \u2013 A minimalist, low\u2011overhead plugin API that protects core state**\n\n| What | Why it matters | How to implement | Source cell |\n|------|----------------|------------------|-------------|\n| **Single \u201cmutation choke\u2011point\u201d** | Guarantees that *every* state change originates from a well\u2011defined control path that can be audited, logged and validated. | Expose only one exported entry function, e.g. `apply_command(command, payload) -> Result`. All plugins transmit a *command name* and a deep\u2011copied payload instead of a core\u2011object reference. The core then validates the command\u2019s schema, checks an opaque \u201cpermissions\u201d flag, and mutates its own state. | [mechanism @hop1]\u202f(67), [mechanism @hop2]\u202f(72) |\n| **Immutable read\u2011only snapshots** | Prevent accidental or malicious mutation of state objects that plugins receive. | When a plugin needs to read state, the core serialises or deep\u2011copies the relevant portion into a frozen, read\u2011only data structure (e.g. `Object.freeze()` in JavaScript, `frozenset` in Python). The plugin can inspect but cannot modify it. | [builder @hop1]\u202f(76), [mechanism @hop1]\u202f(67) |\n| **Explicit extension points (hooks, commands, events)** | Keeps core logic encapsulated while still offering extensibility. | Define five stable \u201chooks\u201d (e.g. `on_init`, `on_shutdown`) and three \u201ccommands\u201d (`do_something`, `set_config`). Each hook/command type is an interface that the core loads and dispatches to plugins. No plugin receives a direct reference to any core object. | [builder @hop1]\u202f(81) |\n| **Versioned contract** | Protects against breaking changes that could silently corrupt state. | In the plugin manifest include `api_version` (integer). The core loads only plugins whose version matches the currently supported version. Deprecated command names are still accepted but emit a warning; actual removal occurs on a major bump. No dynamic capability negotiation. | [mechanism @hop2]\u202f(70), [builder @hop1]\u202f(0.76) |\n| **Process boundary (optional but recommended)** | In an environment where the language runtime offers a trivial \u201cin\u2011process\u201d sandbox (e.g. common\u2011language runtime of Node, Python, Java) a separate process guarantees no shared\u2011heap monkey\u2011patching. | - **Out\u2011of\u2011process**: spawn a child process and communicate via a line\u2011delimited protocol (JSON or MsgPack) over `stdin/stdout`. The core sends the immutable snapshot, receives a command and payload, validates, applies, and replies with the result. Glue code is ~100\u202fLOC. <br> - **In\u2011process**: only load plugins that the developer explicitly marks as \u201ctrusted\u201d in a manifest and document that *any* corruption can only occur if the plugin bypasses the guard rails. | [mechanism @hop1]\u202f(63), [mechanism @hop2]\u202f(70) |\n\n### Why this design works for a small open\u2011source project\n\n- **Limited resources**: The design uses a *single* public interface and avoids heavyweight middleware such as a full\u2011blown dependency\u2011injection framework or multi\u2011phase lifecycle. The \u201cone\u2011entrypoint\u201d constraint is explicitly mentioned as a constraint for projects with scarce engineering bandwidth. [builder @hop1]\u202f(0.76), [mechanism @hop2]\u202f(56)\n- **Guardrails against corruption**: Even if a plugin is strangely behaved, it cannot mutate core state outside the validated path, because it never sees any mutable reference. The single mutation choke\u2011point and immutable snapshots together form the primary safety net. [could not corrupt] is a *stronger* guarantee only if the process boundary is used; otherwise the promise is \u201cdoes not corrupt via the documented API\u201d \u2013 a realistic claim for a small but cautious ecosystem. [skeptic @hop1]\u202f(0.74), [skeptic @hop2]\u202f(0.70), [mechanism @hop2]\u202f(69)\n- **Ease of adoption**: The plugin spec is minimal \u2013 a JSON manifest with an `api_version` field, the name of the entry symbol (`apply_command`), and a list of extension points it implements. The core can ship a simple \u201cplugin loader\u201d that checks the manifest, ensures version compatibility, and loads the module or binary. This matches the low\u2011overhead expectation from the builder. [builder @hop1]\u202f(0.81)\n\n### Tension surface\n\nBuilder\u2019s vision (immutability, copying, sandboxing) aligns with mechanism suggestions about a single mutation choke\u2011point. The skeptic, however, stresses that in a typical shared\u2011heap runtime there is *no true* sandbox \u2013 even a single mutation control might be bypassed by monkey\u2011patching core internals. Hence the skeptic recommends that the only *hard* guarantee comes from a process boundary. The mechanism cells codify this view by offering the two alternatives: (a) subprocess + IPC for true isolation or (b) a nominal",
+ "transcript": [
+  {
+   "jev_id": "jev-848f6f8ef535",
+   "cell": "input",
+   "hop": 0,
+   "ts": "2026-10-01T21:31:46Z",
+   "judgment": {
+    "verdict": "Decompose the user prompt into actionable granular components.",
+    "confidence": 0.98,
+    "grounds": "The user explicitly requests a decomposition of the prompt into sub-questions, entities, constraints, and risks with salience scores."
+   },
+   "extractions": [
+    {
+     "type": "sub-question",
+     "content": "How should a small open-source project structure its first plugin API to prevent third\u2011party plugins from corrupting core state?",
+     "salience": 0.92
+    },
+    {
+     "type": "constraint",
+     "content": "Small open-source project (limited resources, small team)",
+     "salience": 0.65
+    },
+    {
+     "type": "entity",
+     "content": "Core state of the application",
+     "salience": 0.75
+    },
+    {
+     "type": "risk",
+     "content": "Third\u2011party plugins may corrupt or unexpectedly alter core state",
+     "salience": 0.78
+    },
+    {
+     "type": "entity",
+     "content": "Plugin API design (e.g., interfaces, sandboxing, immutability)",
+     "salience": 0.85
+    }
+   ],
+   "verdict": {
+    "action": "answer",
+    "targets_hint": [],
+    "summary": "The prompt is to be broken down into sub\u2011questions, constraints, entities, and risks, with salience ratings indicating how crucial each component is for crafting a suitable plugin API design."
+   },
+   "parents": [],
+   "notes": {
+    "repairs": []
+   }
+  },
+  {
+   "jev_id": "jev-d569ffb91ab9",
+   "cell": "builder",
+   "hop": 1,
+   "ts": "2026-10-01T21:31:50Z",
+   "judgment": {
+    "verdict": "intent understood",
+    "confidence": 0.95,
+    "grounds": "user wants design guidance for plugin API that prevents third\u2011party code from corrupting core state of a small open\u2011source project."
+   },
+   "extractions": [
+    {
+     "type": "constraint",
+     "content": "Project is small, limited resources",
+     "salience": 0.8
+    },
+    {
+     "type": "constraint",
+     "content": "Core state must remain protected from plugin code",
+     "salience": 0.9
+    },
+    {
+     "type": "entity",
+     "content": "Plugin API design (interfaces, sandboxing, immutability, versioning)",
+     "salience": 0.85
+    },
+    {
+     "type": "sub-question",
+     "content": "How to structure plugin API to isolate core state?",
+     "salience": 0.9
+    },
+    {
+     "type": "claim",
+     "content": "Immutability, copying, sandboxing, and explicit contracts can prevent state corruption",
+     "salience": 0.8
+    }
+   ],
+   "verdict": {
+    "action": "answer",
+    "targets_hint": [],
+    "summary": "Provide a detailed, step\u2011by\u2011step design pattern for a small open\u2011source project that implements a safe, declarative plugin API. Recommend using immutable data contracts, copy\u2011on\u2011write state snapshots, event\u2011driven hooks, and optional process isolation techniques (like WebAssembly or child processes). Include code snippets (Python/JS) that show how to expose read\u2011only APIs and enforce type safety. Also cover version pinning, whitelisting, and graceful deprecation of APIs."
+   },
+   "parents": [
+    "jev-848f6f8ef535"
+   ],
+   "notes": {
+    "repairs": [],
+    "activation_in": 1.8008,
+    "delivered_types": [
+     "constraint",
+     "entity"
+    ]
+   }
+  },
+  {
+   "jev_id": "jev-4e878e588a31",
+   "cell": "mechanism",
+   "hop": 1,
+   "ts": "2026-10-01T21:32:01Z",
+   "judgment": {
+    "verdict": "The mechanism is ownership separation: plugins never touch core objects directly, they operate on mutable extension-owned state that is only merged back into core through narrow, validated, atomic command handlers. Concretely: a plugin registry loading out-of-process (or at minimum an isolated modul",
+    "confidence": 0.7,
+    "grounds": "Preventing corruption is a memory/ownership problem before an API-design problem. The smallest workable mechanism is to make the plugin physically unable to hold a reference to core state: pass serialized/copied inputs, receive only opaque handles, and require all mutations to arrive as atomic commands the core validates and applies. For a small project this is achievable with one process boundary (subprocess/IPC or WASM sandbox) plus a single choke-point mutation function, without building a full capability system."
+   },
+   "extractions": [
+    {
+     "type": "mechanism",
+     "content": "Single mutation choke-point: core exposes one validate-and-apply function; all plugin-originated state changes are commands passed through it after schema/authorization checks, never direct object references or raw pointer/handle mutation.",
+     "salience": 0.95
+    },
+    {
+     "type": "mechanism",
+     "content": "Boundary isolation: run plugins in a separate process (subprocess+IPC), or if in-process, in a restricted module/classloader/untrusted-language sandbox so no core object reference crosses the boundary; pass deep-copied or serialized read-only snapshots in, opaque IDs/handles out.",
+     "salience": 0.9
+    },
+    {
+     "type": "constraint",
+     "content": "Small project budget means the API must be one interface with a version field and a deprecated-flag mechanism \u2014 no dynamic capability negotiation, no dependency-injection framework, no multi-phase lifecycle to maintain.",
+     "salience": 0.75
+    },
+    {
+     "type": "risk",
+     "content": "In-process plugins in a shared heap (e.g. Python/Node/Java single process) cannot be truly sandboxed: any in-process plugin can monkey-patch core, so 'cannot corrupt' only holds if a process/language boundary is actual; otherwise scope the claim to 'does not corrupt through the API' and add defensive copies at the choke-point.",
+     "salience": 0.85
+    },
+    {
+     "type": "mechanism",
+     "content": "Versioned contract + explicit extension points: plugin API is a stable, versioned set of hook/command signatures; core owns the state, plugins own only their own private data keyed by plugin ID, merged back atomically.",
+     "salience": 0.7
+    }
+   ],
+   "verdict": {
+    "action": "route",
+    "targets_hint": [
+     "__router__",
+     "risk",
+     "constraint-cell"
+    ],
+    "summary": "Answer shape: ownership separation via one validated mutation choke-point + a real process/classloader boundary (not merely an API convention) + versioned, minimal interface with plugin-private state. Hand the in-process-sandbox caveat to risk so the claim isn't overstated for a small project."
+   },
+   "parents": [
+    "jev-848f6f8ef535"
+   ],
+   "notes": {
+    "repairs": [],
+    "activation_in": 1.2309,
+    "delivered_types": [
+     "constraint",
+     "sub-question"
+    ]
+   }
+  },
+  {
+   "jev_id": "jev-ed3c80cd4ff2",
+   "cell": "skeptic",
+   "hop": 1,
+   "ts": "2026-10-01T21:32:23Z",
+   "judgment": {
+    "verdict": "The projected inputs correctly identify the core risk of plugin-induced core state corruption and the overarching query, but are overly generic and fail to account for the unique resource constraints of small open-source projects, leading to potentially unimplementable generic guidance",
+    "confidence": 0.87,
+    "grounds": "Small open-source projects lack the engineering bandwidth and resources for enterprise-grade plugin sandboxing, which the projected framing does not address, making the generic problem statement incomplete without tailored constraints and feasible solution contexts"
+   },
+   "extractions": [
+    {
+     "type": "constraint",
+     "content": "Small open-source projects have limited development time and engineering bandwidth, precluding enterprise-grade plugin sandboxing solutions",
+     "salience": 0.92
+    },
+    {
+     "type": "risk",
+     "content": "Third-party plugins may corrupt or unexpectedly alter core project state without API guardrails",
+     "salience": 0.78
+    },
+    {
+     "type": "sub-question",
+     "content": "What low-overhead, maintainable plugin API guardrails prevent core state corruption for small open-source projects?",
+     "salience": 0.95
+    },
+    {
+     "type": "mechanism",
+     "content": "Restricting plugin access to core state via read-only wrappers or controlled, audited mutation interfaces",
+     "salience": 0.88
+    },
+    {
+     "type": "claim",
+     "content": "Generic enterprise plugin API structures are not feasible for small open-source projects",
+     "salience": 0.85
+    }
+   ],
+   "verdict": {
+    "action": "route",
+    "targets_hint": [
+     "small_project_api_design",
+     "plugin_security_specialist",
+     "open_source_maintainer_advice"
+    ],
+    "summary": "Forward the core question of structuring a first plugin API for small open-source projects to block core state corruption, paired with the identified risk and critical constraint of limited project resources, to generate tailored, low-overhead guidance"
+   },
+   "parents": [
+    "jev-848f6f8ef535"
+   ],
+   "notes": {
+    "repairs": [],
+    "activation_in": 1.1662,
+    "delivered_types": [
+     "risk",
+     "sub-question"
+    ]
+   }
+  },
+  {
+   "jev_id": "jev-f8443056e0b3",
+   "cell": "skeptic",
+   "hop": 2,
+   "ts": "2026-10-01T21:33:01Z",
+   "judgment": {
+    "verdict": "Current plugin API design inputs contain redundant claims, underdeveloped in-process plugin risk analysis, and lack tailored low-overhead guardrails for small open-source projects",
+    "confidence": 0.87,
+    "grounds": "The input set includes duplicate repeated claims about core state protection methods, a partially truncated risk analysis for in-process shared-heap plugins that fails to fully outline their bypass risks, and no specific, resource-aligned guardrail solutions tailored to small open-source projects' limited engineering bandwidth"
+   },
+   "extractions": [
+    {
+     "type": "constraint",
+     "content": "Small open-source projects have limited development time and engineering bandwidth",
+     "salience": 0.9
+    },
+    {
+     "type": "risk",
+     "content": "In-process shared-heap plugins can monkey-patch core project state to bypass API guardrails",
+     "salience": 0.93
+    },
+    {
+     "type": "sub-question",
+     "content": "What specific low-overhead, maintainable plugin API guardrails fit small open-source project resource limits?",
+     "salience": 0.96
+    },
+    {
+     "type": "mechanism",
+     "content": "Single mutation choke-point with schema validation and authorization checks for all plugin state changes",
+     "salience": 0.87
+    },
+    {
+     "type": "claim",
+     "content": "Enterprise-grade plugin API structures are not feasible for small open-source projects",
+     "salience": 0.81
+    }
+   ],
+   "verdict": {
+    "action": "route",
+    "targets_hint": [
+     "builder",
+     "mechanism"
+    ],
+    "summary": "Route requests for tailored, low-overhead plugin API guardrails for small open-source projects, addressing redundant inputs, in-process plugin risks, and resource constraints to deliver feasible core state protection"
+   },
+   "parents": [
+    "jev-d569ffb91ab9",
+    "jev-4e878e588a31",
+    "jev-ed3c80cd4ff2"
+   ],
+   "notes": {
+    "repairs": [],
+    "activation_in": 3.868,
+    "delivered_types": [
+     "claim",
+     "risk",
+     "sub-question"
+    ]
+   }
+  },
+  {
+   "jev_id": "jev-f49e4dfad553",
+   "cell": "mechanism",
+   "hop": 2,
+   "ts": "2026-10-01T21:33:10Z",
+   "judgment": {
+    "verdict": "The minimal mechanism is: core owns all state; plugins never receive references to it. Plugins execute only inside a process boundary (subprocess + JSON-RPC/IPC) or, if in-process, are limited to pure functions whose only core-state access is via explicit immutable snapshots in and serialized comman",
+    "confidence": 0.78,
+    "grounds": "Prior layer's choke-point + boundary mechanisms are correct but the in-process case is being over-claimed. The smallest honest mechanism is a single command interface with version field, backed by either a real process boundary or a stated scope limitation that in-process plugins are trusted."
+   },
+   "extractions": [
+    {
+     "type": "mechanism",
+     "content": "Single choke-point API: core exposes exactly one entry symbol (e.g. apply(command, payload) -> Result). No plugin ever holds a reference, handle, or pointer into core state. All reads come as serialized/deep-copied immutable snapshots; all writes are commands validated against a schema and an authorization table keyed by plugin ID before any mutation.",
+     "salience": 0.92
+    },
+    {
+     "type": "mechanism",
+     "content": "Boundary decision: either (a) out-of-process plugins via subprocess + line-delimited JSON (or msgpack) over stdin/stdout \u2014 real isolation, ~100 LOC of glue; or (b) in-process plugins declared 'trusted' in the manifest, with the project explicitly documenting that corrupt-state protection is NOT provided for in-process plugins. Pick one; do not pretend language-level sandboxes work.",
+     "salience": 0.9
+    },
+    {
+     "type": "mechanism",
+     "content": "Versioned contract: single integer api_version in the plugin manifest, checked at load; incompatible versions refuse to load. Deprecation = a set of deprecated command names still routed but emitting a warning; removal happens only on major version bump. No capability negotiation, no DI, no lifecycle phases.",
+     "salience": 0.85
+    },
+    {
+     "type": "risk",
+     "content": "Scope creep risk: adding a second interface (events, lifecycle hooks, capability grants) doubles maintenance forever. Resist until a concrete plugin needs it. The one-interface design is the load-bearing constraint for a small project.",
+     "salience": 0.72
+    },
+    {
+     "type": "claim",
+     "content": "For small OSS projects, 'cannot corrupt core state' is only achievable by a process boundary. Every other guarantee is 'does not corrupt via the documented API' \u2014 weaker but honest, and sufficient for the trust model of a small plugin ecosystem.",
+     "salience": 0.88
+    }
+   ],
+   "verdict": {
+    "action": "answer",
+    "targets_hint": [
+     "__router__",
+     "builder",
+     "skeptic"
+    ],
+    "summary": "Concrete mechanism: (1) one command interface apply(cmd, payload) with schema validation and per-plugin authorization; (2) no references across the boundary \u2014 snapshots in, commands out; (3) choose subprocess+JSON-RPC for real isolation (~100 LOC) OR declare in-process plugins trusted and state that scope honestly; (4) api_version integer + deprecated-flag list, nothing else. Main unresolved tension: whether the project accepts a process boundary cost or scopes its guarantee to 'trusted plugins only'."
+   },
+   "parents": [
+    "jev-d569ffb91ab9",
+    "jev-4e878e588a31",
+    "jev-ed3c80cd4ff2"
+   ],
+   "notes": {
+    "repairs": [],
+    "activation_in": 3.6975,
+    "delivered_types": [
+     "constraint",
+     "sub-question"
+    ]
+   }
+  }
+ ],
+ "route": null,
+ "run_log": {
+  "run_id": "fwd-213130-16c5",
+  "prompt": "How should a small open-source project structure its first plugin API so that third-party plugins cannot corrupt core state?",
+  "started": "2026-10-01T21:31:30Z",
+  "seed": 47279,
+  "calls": [
+   {
+    "cell": "input",
+    "hop": 0,
+    "source": "gpt-oss-20b",
+    "ms": 8274,
+    "attempts": [
+     {
+      "label": "gpt-oss-20b",
+      "kind": "deepinfra",
+      "model": "openai/gpt-oss-20b",
+      "status": 200,
+      "ms": 8274,
+      "finish": "length",
+      "content_chars": 764,
+      "model_served": "openai/gpt-oss-20b"
+     }
+    ],
+    "seed_requested": 47279
+   },
+   {
+    "cell": "input",
+    "hop": 0,
+    "note": "repair-retry (truncated)",
+    "source": "gpt-oss-20b"
+   },
+   {
+    "cell": "input",
+    "hop": 0,
+    "source": "gpt-oss-20b",
+    "ms": 7215,
+    "attempts": [
+     {
+      "label": "gpt-oss-20b",
+      "kind": "deepinfra",
+      "model": "openai/gpt-oss-20b",
+      "status": 200,
+      "ms": 7215,
+      "finish": "stop",
+      "content_chars": 1104,
+      "model_served": "openai/gpt-oss-20b"
+     }
+    ],
+    "seed_requested": 47279
+   },
+   {
+    "cell": "builder",
+    "hop": 1,
+    "source": "gpt-oss-20b",
+    "ms": 4185,
+    "attempts": [
+     {
+      "label": "gpt-oss-20b",
+      "kind": "deepinfra",
+      "model": "openai/gpt-oss-20b",
+      "status": 200,
+      "ms": 4185,
+      "finish": "stop",
+      "content_chars": 1290,
+      "model_served": "openai/gpt-oss-20b"
+     }
+    ],
+    "seed_requested": 47279
+   },
+   {
+    "cell": "mechanism",
+    "hop": 1,
+    "source": "deepseek-flash",
+    "ms": 5308,
+    "attempts": [
+     {
+      "label": "granite",
+      "kind": "deepinfra",
+      "model": "ibm-granite/granite-4.2-3b",
+      "status": 200,
+      "ms": 5398,
+      "finish": "length",
+      "content_chars": 0,
+      "model_served": "ibm-granite/granite-4.2-3b",
+      "note": "empty content (reasoner burn?)"
+     },
+     {
+      "label": "deepseek-flash",
+      "kind": "deepseek",
+      "model": "deepseek-chat",
+      "status": 200,
+      "ms": 5308,
+      "finish": "stop",
+      "content_chars": 3014,
+      "model_served": "deepseek-flash"
+     }
+    ],
+    "seed_requested": 47279
+   },
+   {
+    "cell": "skeptic",
+    "hop": 1,
+    "source": "seed-mini",
+    "ms": 22669,
+    "attempts": [
+     {
+      "label": "seed-mini",
+      "kind": "deepinfra",
+      "model": "ByteDance/Seed-2.0-mini",
+      "status": 200,
+      "ms": 22669,
+      "finish": "stop",
+      "content_chars": 1857,
+      "model_served": "ByteDance/Seed-2.0-mini"
+     }
+    ],
+    "seed_requested": 47279
+   },
+   {
+    "cell": "builder",
+    "hop": 2,
+    "source": "gpt-oss-20b",
+    "ms": 9885,
+    "attempts": [
+     {
+      "label": "gpt-oss-20b",
+      "kind": "deepinfra",
+      "model": "openai/gpt-oss-20b",
+      "status": 200,
+      "ms": 9885,
+      "finish": "length",
+      "content_chars": 1849,
+      "model_served": "openai/gpt-oss-20b"
+     }
+    ],
+    "seed_requested": 47279
+   },
+   {
+    "cell": "builder",
+    "hop": 2,
+    "note": "repair-retry (truncated)",
+    "source": "gpt-oss-20b"
+   },
+   {
+    "cell": "builder",
+    "hop": 2,
+    "source": "gpt-oss-20b",
+    "ms": 7706,
+    "attempts": [
+     {
+      "label": "gpt-oss-20b",
+      "kind": "deepinfra",
+      "model": "openai/gpt-oss-20b",
+      "status": 200,
+      "ms": 7706,
+      "finish": "stop",
+      "content_chars": 2331,
+      "model_served": "openai/gpt-oss-20b"
+     }
+    ],
+    "seed_requested": 47279
+   },
+   {
+    "cell": "skeptic",
+    "hop": 2,
+    "source": "seed-mini",
+    "ms": 19614,
+    "attempts": [
+     {
+      "label": "seed-mini",
+      "kind": "deepinfra",
+      "model": "ByteDance/Seed-2.0-mini",
+      "status": 200,
+      "ms": 19614,
+      "finish": "stop",
+      "content_chars": 1640,
+      "model_served": "ByteDance/Seed-2.0-mini"
+     }
+    ],
+    "seed_requested": 47279
+   },
+   {
+    "cell": "mechanism",
+    "hop": 2,
+    "source": "deepseek-flash",
+    "ms": 5116,
+    "attempts": [
+     {
+      "label": "granite",
+      "kind": "deepinfra",
+      "model": "ibm-granite/granite-4.2-3b",
+      "status": 200,
+      "ms": 4040,
+      "finish": "length",
+      "content_chars": 0,
+      "model_served": "ibm-granite/granite-4.2-3b",
+      "note": "empty content (reasoner burn?)"
+     },
+     {
+      "label": "deepseek-flash",
+      "kind": "deepseek",
+      "model": "deepseek-chat",
+      "status": 200,
+      "ms": 5116,
+      "finish": "stop",
+      "content_chars": 3397,
+      "model_served": "deepseek-flash"
+     }
+    ],
+    "seed_requested": 47279
+   },
+   {
+    "cell": "synth",
+    "source": "gpt-oss-20b",
+    "ms": 13211,
+    "attempts": [
+     {
+      "label": "gpt-oss-20b",
+      "kind": "deepinfra",
+      "model": "openai/gpt-oss-20b",
+      "status": 200,
+      "ms": 13211,
+      "finish": "length",
+      "content_chars": 4633,
+      "model_served": "openai/gpt-oss-20b"
+     }
+    ]
+   }
+  ],
+  "hops": [
+   {
+    "hop": 1,
+    "inbox": {
+     "mechanism": {
+      "activation": 1.2309,
+      "n_delivered": 2
+     },
+     "skeptic": {
+      "activation": 1.1662,
+      "n_delivered": 2
+     },
+     "builder": {
+      "activation": 1.8008,
+      "n_delivered": 4
+     }
+    },
+    "fired": [
+     {
+      "cell": "builder",
+      "activation": 1.8008,
+      "action": "answer",
+      "n_extractions": 5
+     },
+     {
+      "cell": "mechanism",
+      "activation": 1.2309,
+      "action": "route",
+      "n_extractions": 5
+     },
+     {
+      "cell": "skeptic",
+      "activation": 1.1662,
+      "action": "route",
+      "n_extractions": 5
+     }
+    ],
+    "spawned": []
+   },
+   {
+    "hop": 2,
+    "inbox": {
+     "mechanism": {
+      "activation": 3.6975,
+      "n_delivered": 6
+     },
+     "builder": {
+      "activation": 6.367,
+      "n_delivered": 13
+     },
+     "skeptic": {
+      "activation": 3.868,
+      "n_delivered": 8
+     }
+    },
+    "fired": [
+     {
+      "cell": "builder",
+      "note": "call failed",
+      "source": "gpt-oss-20b"
+     },
+     {
+      "cell": "skeptic",
+      "activation": 3.868,
+      "action": "route",
+      "n_extractions": 5
+     },
+     {
+      "cell": "mechanism",
+      "activation": 3.6975,
+      "action": "answer",
+      "n_extractions": 5
+     }
+    ],
+    "spawned": []
+   }
+  ],
+  "spawn_injections": [],
+  "packets": [
+   "jev-848f6f8ef535",
+   "jev-d569ffb91ab9",
+   "jev-4e878e588a31",
+   "jev-ed3c80cd4ff2",
+   "jev-f8443056e0b3",
+   "jev-f49e4dfad553"
+  ],
+  "max_hops": 2,
+  "spawn_budget": 3
+ },
+ "finished": "2026-10-01T21:33:23Z"
+}

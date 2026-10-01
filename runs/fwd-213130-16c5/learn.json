@@ -1,0 +1,76 @@
+{
+ "updates": [
+  {
+   "edge": "input->builder",
+   "cell_delta": 2,
+   "share": 0.293,
+   "signal": 0.2927,
+   "before": 0.6,
+   "after": 0.6351
+  },
+  {
+   "edge": "mechanism->builder",
+   "cell_delta": 2,
+   "share": 0.366,
+   "signal": 0.3659,
+   "before": 0.75,
+   "after": 0.7939
+  },
+  {
+   "edge": "input->mechanism",
+   "cell_delta": 2,
+   "share": 1.0,
+   "signal": 1.0,
+   "before": 0.8,
+   "after": 0.92
+  },
+  {
+   "edge": "input->skeptic",
+   "cell_delta": 1,
+   "share": 0.583,
+   "signal": 0.2917,
+   "before": 0.7,
+   "after": 0.735
+  },
+  {
+   "edge": "input->skeptic",
+   "cell_delta": 1,
+   "share": 0.595,
+   "signal": 0.2976,
+   "before": 0.735,
+   "after": 0.7707
+  },
+  {
+   "edge": "builder->skeptic",
+   "cell_delta": 1,
+   "share": 0.405,
+   "signal": 0.2024,
+   "before": 0.5,
+   "after": 0.5243
+  },
+  {
+   "edge": "input->mechanism",
+   "cell_delta": 2,
+   "share": 1.0,
+   "signal": 1.0,
+   "before": 0.92,
+   "after": 1.0
+  }
+ ],
+ "judge": {
+  "score": 9,
+  "gaps": [
+   "Missing concrete code snippet for the 'apply_command' validation logic to illustrate schema checking.",
+   "Does not explicitly mention capability-based security tokens as an alternative to simple permission flags.",
+   "Lacks discussion on error handling propagation from plugins to core without leaking stack traces."
+  ],
+  "judge": "Qwen3.5-397B"
+ },
+ "cell_deltas": {
+  "builder": 2,
+  "mechanism": 2,
+  "skeptic": 1
+ },
+ "eta": 0.12,
+ "ts": "2026-10-01T21:35:01Z"
+}
